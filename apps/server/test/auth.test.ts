@@ -49,6 +49,19 @@ describe("sign in", () => {
     expect(bad.json().message).toBe(unknown.json().message);
   });
 
+  it("slows down password guessing on an account, whatever address it comes from", async () => {
+    const attempt = (password: string, ip: string, email = ADMIN.email) =>
+      app.inject({ method: "POST", url: "/api/auth/login", payload: { email, password }, remoteAddress: ip });
+    // A different address for each try: the per-address limit never applies.
+    for (let i = 1; i <= 6; i++) expect((await attempt("mauvais-mot-de-passe", `203.0.113.${i}`)).statusCode).toBe(401);
+    // Now the account waits, even with the right password (the answer doesn't tell whether it was right).
+    const waiting = await attempt(ADMIN.password, "203.0.113.50");
+    expect(waiting.statusCode).toBe(429);
+    expect(waiting.json().message).toMatch(/1 min/);
+    // Other accounts, and unknown addresses, aren't affected.
+    expect((await attempt("nope-nope-nope", "203.0.113.51", "x@example.com")).statusCode).toBe(401);
+  });
+
   it("signing out invalidates the session", async () => {
     const c = new Client(app);
     await c.post("/api/auth/login", { email: ADMIN.email, password: ADMIN.password });

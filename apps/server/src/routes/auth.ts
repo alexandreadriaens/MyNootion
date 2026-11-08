@@ -12,18 +12,27 @@ import { avatarsDir, toPublicUser } from "../users.js";
 import { imageExtension } from "../images.js";
 import { clearSessionCookie, startSession } from "./session-cookie.js";
 import { passwordAllowed, ssoOnlyMessage } from "./sso.js";
+import { clientKey, createLoginThrottle } from "../auth/login-throttle.js";
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
-  app.post("/login", { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (req, reply) => {
+  const throttle = createLoginThrottle();
+
+  app.post("/login", { config: { rateLimit: { max: 10, timeWindow: "1 minute", keyGenerator: (req) => clientKey(req.ip) } } }, async (req, reply) => {
     const input = parseBody(loginInput, req.body);
+    // While the account waits, the password isn't even checked: the answer can't tell whether it was right.
+    const wait = throttle.wait(input.email);
+    if (wait > 0) throw new HttpError(429, "too_many_attempts", t("error.tooManyAttempts", { minutes: Math.ceil(wait / 60_000) }));
     const user = app.db.select().from(users).where(eq(users.email, input.email)).get();
     if (!user) {
       await burnPasswordCheck(input.password);
+      throttle.failed(input.email);
       throw new HttpError(401, "bad_credentials", t("error.badCredentials"));
     }
     if (!(await verifyPassword(user.passwordHash, input.password))) {
+      throttle.failed(input.email);
       throw new HttpError(401, "bad_credentials", t("error.badCredentials"));
     }
+    throttle.succeeded(input.email);
     if (user.disabled) throw new HttpError(403, "disabled", t("error.accountDisabled"));
     if (!passwordAllowed(app, user.role)) throw new HttpError(403, "sso_only", ssoOnlyMessage());
     startSession(app, reply, user.id);

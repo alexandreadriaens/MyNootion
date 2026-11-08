@@ -568,6 +568,7 @@ export const fr: Messages = {
   "error.tokenReadOnly": "Ce jeton d'API est en lecture seule.",
   "error.tokenWorkspace": "Un jeton ne peut accéder qu'aux espaces dont vous êtes membre.",
   "error.tooManyRequests": "Trop de requêtes : attendez une minute et réessayez.",
+  "error.tooManyAttempts": "Trop de mots de passe erronés pour ce compte : réessayez dans {minutes} min.",
   "error.tooManyRows": "{max} lignes au maximum par import.",
   "error.trashFirst": "Mettez d'abord la page à la corbeille.",
   "error.unauthorized": "Connexion requise.",

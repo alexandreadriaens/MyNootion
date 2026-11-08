@@ -565,6 +565,7 @@ export const en = {
   "error.tokenReadOnly": "This API token is read-only.",
   "error.tokenWorkspace": "A token can only reach spaces you are a member of.",
   "error.tooManyRequests": "Too many requests: wait a minute and try again.",
+  "error.tooManyAttempts": "Too many wrong passwords for this account: try again in {minutes} min.",
   "error.tooManyRows": "At most {max} rows per import.",
   "error.trashFirst": "Move the page to the trash first.",
   "error.unauthorized": "Please sign in.",
