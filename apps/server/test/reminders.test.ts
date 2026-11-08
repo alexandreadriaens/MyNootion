@@ -111,7 +111,7 @@ describe("reminders", () => {
     expect((await boris.post("/api/reminders/push-subscriptions", sub)).statusCode).toBe(200);
     expect((await boris.post("/api/reminders/push-subscriptions", { endpoint: "not a url", keys: sub.keys })).statusCode).toBe(400);
     // Only a browser's push service: the server must not post to any other address (the local network…).
-    for (const endpoint of ["http://192.168.0.148:5000/x", "https://evil.example.com/push", "https://fcm.googleapis.com.evil.com/x"]) {
+    for (const endpoint of ["http://192.168.1.20:5000/x", "https://evil.example.com/push", "https://fcm.googleapis.com.evil.com/x"]) {
       expect((await boris.post("/api/reminders/push-subscriptions", { endpoint, keys: sub.keys })).statusCode, endpoint).toBe(400);
     }
 

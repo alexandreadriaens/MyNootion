@@ -104,7 +104,7 @@ describe("buttons", () => {
   });
 
   it("refuse webhooks towards the server's local network", async () => {
-    for (const url of ["http://127.0.0.1:9/hook", "http://localhost:9/hook", "http://[::ffff:192.168.0.148]:5000/", "http://10.0.0.1/"]) {
+    for (const url of ["http://127.0.0.1:9/hook", "http://localhost:9/hook", "http://[::ffff:192.168.1.20]:5000/", "http://10.0.0.1/"]) {
       const page = await pageWithButton({ steps: [{ type: "webhook", url }] }, `Hook ${url}`);
       const res = await run(boris, { source: { kind: "block", pageId: page, blockId: "btn-1" } });
       expect(res.statusCode, url).toBe(400);

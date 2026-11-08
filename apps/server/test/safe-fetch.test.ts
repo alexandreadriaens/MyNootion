@@ -10,7 +10,7 @@ describe("requests on behalf of users", () => {
       "127.0.0.1",
       "10.1.2.3",
       "172.20.0.1",
-      "192.168.0.148",
+      "192.168.1.20",
       "169.254.169.254",
       "100.64.0.1",
       "0.0.0.0",
@@ -19,10 +19,10 @@ describe("requests on behalf of users", () => {
       "::",
       "fe80::1",
       "fd00::1",
-      "::ffff:192.168.0.148",
-      "::ffff:c0a8:94",
-      "64:ff9b::c0a8:94",
-      "2002:c0a8:94::1",
+      "::ffff:192.168.1.20",
+      "::ffff:c0a8:114",
+      "64:ff9b::c0a8:114",
+      "2002:c0a8:114::1",
       "not an address",
     ]) {
       expect(isPublicAddress(ip), ip).toBe(false);
