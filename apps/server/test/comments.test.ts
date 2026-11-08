@@ -26,7 +26,7 @@ beforeEach(async () => {
   page = await boris.createPage(ws, "Budget");
   await boris.put(`/api/pages/${page}/shares`, { userId: aliceId, role: "commenter" });
   await boris.put(`/api/pages/${page}/shares`, { userId: eveId, role: "viewer" });
-  await alice.post("/api/reminders/push-subscriptions", { endpoint: "https://push.example.com/alice", keys: { p256dh: "k", auth: "a" } });
+  await alice.post("/api/reminders/push-subscriptions", { endpoint: "https://fcm.googleapis.com/fcm/send/alice", keys: { p256dh: "k", auth: "a" } });
 });
 
 const threads = async (c: Client) => (await c.get(`/api/pages/${page}/comments`)).json().threads;

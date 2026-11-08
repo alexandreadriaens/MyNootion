@@ -151,6 +151,26 @@ describe("real-time editing", { timeout: 15000 }, () => {
     expect(textOf(again.doc)).toContain("Après le retrait");
   });
 
+  it("signing out ends the live editing opened with that session", async () => {
+    const ws = await boris.personalWorkspace();
+    const page = await boris.createPage(ws, "Notes");
+    await boris.put(`/api/pages/${page}/shares`, { userId: await alice.id(), role: "editor" });
+    const a = connect(boris, page);
+    // Alice's session, as a thief who copied her cookie would use it.
+    const b = connect(alice, page);
+    await a.synced;
+    expect(await b.synced).toBe(true);
+
+    await alice.post("/api/auth/logout");
+    await wait(1500);
+    write(a.doc, "Après la déconnexion");
+    await wait(500);
+    expect(textOf(b.doc)).not.toContain("Après la déconnexion");
+    // And the session can't open another page on a new socket either.
+    const other = connect(alice, await boris.createPage(ws, "Autre"));
+    expect(await other.synced).toBe(false);
+  });
+
   it("the content is visible through the public link, without leaking linked private pages", async () => {
     const ws = await boris.personalWorkspace();
     const page = await boris.createPage(ws, "Recette");

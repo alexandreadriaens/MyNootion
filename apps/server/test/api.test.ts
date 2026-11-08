@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { eq } from "drizzle-orm";
 import { apiTokens } from "../src/db/schema.js";
-import { Client, inviteUser, makeApp, setupAdmin } from "./helpers.js";
+import { ADMIN, Client, inviteUser, makeApp, setupAdmin } from "./helpers.js";
 
 let app: FastifyInstance;
 let boris: Client;
@@ -55,6 +55,16 @@ describe("personal API tokens", () => {
 
     expect((await boris.delete(`/api/tokens/${apiToken.id}`)).statusCode).toBe(200);
     expect((await api.get("/api/auth/me")).statusCode).toBe(401);
+  });
+
+  it("are revoked when the password changes", async () => {
+    const { client } = await makeToken([personal], false);
+    expect((await client.get("/api/auth/me")).statusCode).toBe(200);
+    const res = await boris.patch("/api/auth/me", { currentPassword: ADMIN.password, newPassword: "un-nouveau-mot-de-passe" });
+    expect(res.statusCode, res.body).toBe(200);
+    // Whoever had created a token with a stolen session keeps nothing.
+    expect((await client.get("/api/auth/me")).statusCode).toBe(401);
+    expect((await boris.get("/api/tokens")).json().tokens).toEqual([]);
   });
 
   it("only reach spaces the user belongs to", async () => {

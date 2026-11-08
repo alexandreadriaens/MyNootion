@@ -5,25 +5,34 @@ import type { FastifyPluginAsync } from "fastify";
 import { AVATAR_MAX_BYTES, deleteMeInput, loginInput, t, updateMeInput } from "@nootion/shared";
 import { and, count, eq, inArray, ne } from "drizzle-orm";
 import { burnPasswordCheck, hashPassword, verifyPassword } from "../auth/password.js";
-import { deleteSession, deleteUserSessions, SESSION_COOKIE } from "../auth/sessions.js";
+import { deleteSession, deleteUserSessions, findSessionUser, revokeUserApiAccess, SESSION_COOKIE } from "../auth/sessions.js";
 import { users, workspaceMembers, workspaces } from "../db/schema.js";
 import { HttpError, parseBody, requireUser } from "../http.js";
 import { avatarsDir, toPublicUser } from "../users.js";
 import { imageExtension } from "../images.js";
 import { clearSessionCookie, startSession } from "./session-cookie.js";
 import { passwordAllowed, ssoOnlyMessage } from "./sso.js";
+import { clientKey, createLoginThrottle } from "../auth/login-throttle.js";
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
-  app.post("/login", { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (req, reply) => {
+  const throttle = createLoginThrottle();
+
+  app.post("/login", { config: { rateLimit: { max: 10, timeWindow: "1 minute", keyGenerator: (req) => clientKey(req.ip) } } }, async (req, reply) => {
     const input = parseBody(loginInput, req.body);
+    // While the account waits, the password isn't even checked: the answer can't tell whether it was right.
+    const wait = throttle.wait(input.email);
+    if (wait > 0) throw new HttpError(429, "too_many_attempts", t("error.tooManyAttempts", { minutes: Math.ceil(wait / 60_000) }));
     const user = app.db.select().from(users).where(eq(users.email, input.email)).get();
     if (!user) {
       await burnPasswordCheck(input.password);
+      throttle.failed(input.email);
       throw new HttpError(401, "bad_credentials", t("error.badCredentials"));
     }
     if (!(await verifyPassword(user.passwordHash, input.password))) {
+      throttle.failed(input.email);
       throw new HttpError(401, "bad_credentials", t("error.badCredentials"));
     }
+    throttle.succeeded(input.email);
     if (user.disabled) throw new HttpError(403, "disabled", t("error.accountDisabled"));
     if (!passwordAllowed(app, user.role)) throw new HttpError(403, "sso_only", ssoOnlyMessage());
     startSession(app, reply, user.id);
@@ -32,7 +41,10 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/logout", async (req, reply) => {
     const token = req.cookies[SESSION_COOKIE];
+    const user = token ? findSessionUser(app.db, token) : null;
     if (token) deleteSession(app.db, token);
+    // Live editing opened with this session stops too (the user's other devices reconnect with their own).
+    if (user) app.collab.closeUser(user.id);
     clearSessionCookie(reply);
     return { ok: true };
   });
@@ -58,8 +70,11 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (input.newPassword) set.passwordHash = await hashPassword(input.newPassword);
     const updated = Object.keys(set).length ? app.db.update(users).set(set).where(eq(users.id, user.id)).returning().get() : user;
     if (input.newPassword) {
-      // Signs out every other device; this one gets a fresh session.
+      // Signs out every other device; this one gets a fresh session. API tokens and connected apps are revoked and
+      // live editing is cut: whoever had taken over the account keeps nothing.
       deleteUserSessions(app.db, user.id);
+      revokeUserApiAccess(app.db, user.id);
+      app.collab.closeUser(user.id);
       startSession(app, reply, user.id);
     }
     return { user: toPublicUser(updated) };

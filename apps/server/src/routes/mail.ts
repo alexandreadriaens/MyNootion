@@ -3,7 +3,7 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import { emailPrefsInput, forgotPasswordInput, mailSettingsInput, resetPasswordInput, t, tIn, type Locale } from "@nootion/shared";
 import { z } from "zod";
 import { hashPassword } from "../auth/password.js";
-import { deleteUserSessions } from "../auth/sessions.js";
+import { deleteUserSessions, revokeUserApiAccess } from "../auth/sessions.js";
 import { hashToken, newToken } from "../auth/tokens.js";
 import { passwordResets, users } from "../db/schema.js";
 import { HttpError, parseBody, requireAdmin, requireUser } from "../http.js";
@@ -116,8 +116,10 @@ export const passwordResetRoutes: FastifyPluginAsync = async (app) => {
       .set({ passwordHash: await hashPassword(input.password) })
       .where(eq(users.id, r.userId))
       .run();
-    // Signed out everywhere: whoever knew the old password is out.
+    // Signed out everywhere: whoever knew the old password is out, with any API token or app they had connected.
     deleteUserSessions(db, r.userId);
+    revokeUserApiAccess(db, r.userId);
+    app.collab.closeUser(r.userId);
     return { ok: true };
   });
 };

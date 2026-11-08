@@ -20,6 +20,11 @@ export interface Config {
   updateCheck?: boolean;
   /** Where the latest release is read from. Changed in tests only. */
   updateCheckUrl?: string;
+  /**
+   * Lets webhooks and link previews reach private addresses (LAN, localhost). Off by default: a user could
+   * otherwise make the server call the router, a NAS… On with ALLOW_PRIVATE_NETWORK_REQUESTS=true.
+   */
+  allowPrivateRequests?: boolean;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -43,5 +48,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     updateCheck: env.UPDATE_CHECK !== "false",
     updateCheckUrl: env.UPDATE_CHECK_URL ?? "https://api.github.com/repos/btronquo/Nootion/releases/latest",
     notionApiUrl: (env.NOTION_API_URL ?? "https://api.notion.com").replace(/\/+$/, ""),
+    allowPrivateRequests: env.ALLOW_PRIVATE_NETWORK_REQUESTS === "true",
   };
 }

@@ -103,7 +103,18 @@ describe("buttons", () => {
     expect((await boris.get(`/api/pages/${created[0].id}/content`)).json().markdown).toBe("Saisie par Boris depuis « Tableau de bord ».");
   });
 
+  it("refuse webhooks towards the server's local network", async () => {
+    for (const url of ["http://127.0.0.1:9/hook", "http://localhost:9/hook", "http://[::ffff:192.168.1.20]:5000/", "http://10.0.0.1/"]) {
+      const page = await pageWithButton({ steps: [{ type: "webhook", url }] }, `Hook ${url}`);
+      const res = await run(boris, { source: { kind: "block", pageId: page, blockId: "btn-1" } });
+      expect(res.statusCode, url).toBe(400);
+      expect(res.json().message, url).toMatch(/réseau local/);
+    }
+  });
+
   it("change the current row, create a page and call a webhook from a button column", async () => {
+    // The test's webhook listens on localhost: allowed here as an administrator would (ALLOW_PRIVATE_NETWORK_REQUESTS).
+    app.config.allowPrivateRequests = true;
     const received: unknown[] = [];
     const server = http.createServer((req, res) => {
       let body = "";

@@ -21,6 +21,7 @@ import { requirePageRole } from "./permissions.js";
 import { HttpError, notFound } from "./http.js";
 import type { UserRow } from "./users.js";
 import { ACT_AS_HEADER, INTERNAL_HEADER, INTERNAL_SECRET } from "./internal.js";
+import { BlockedAddressError, safeFetch } from "./safe-fetch.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const WEBHOOK_TIMEOUT_MS = 10_000;
@@ -282,15 +283,21 @@ export async function runButton(app: FastifyInstance, runner: Runner, ctx: Butto
             });
         let res: Response;
         try {
-          res = await fetch(url, {
+          // Never towards the server's own network (router, NAS…), unless the administrator allows it.
+          res = await safeFetch(url, {
             method: "POST",
             headers: { "content-type": "application/json", "user-agent": "Nootion" },
             body,
             signal: AbortSignal.timeout(WEBHOOK_TIMEOUT_MS),
+            maxRedirects: 0,
+            allowPrivate: app.config.allowPrivateRequests === true,
           });
         } catch (err) {
-          throw new HttpError(502, "webhook_failed", t("button.webhookFailed", { reason: (err as Error).message }));
+          if (err instanceof BlockedAddressError) throw new HttpError(400, "private_address", t("button.privateAddress"));
+          // No detail on why it failed: it would tell which hosts and ports answer.
+          throw new HttpError(502, "webhook_failed", t("button.webhookFailed", { reason: "unreachable" }));
         }
+        await res.body?.cancel().catch(() => {});
         if (!res.ok) throw new HttpError(502, "webhook_failed", t("button.webhookFailed", { reason: `HTTP ${res.status}` }));
         return;
       }
