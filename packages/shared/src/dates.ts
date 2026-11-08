@@ -280,7 +280,20 @@ export interface Reminder {
   due: boolean;
 }
 
+/** Push services of the browsers (Chrome, Firefox, Safari, Edge/Windows). */
+const PUSH_HOSTS = ["fcm.googleapis.com", "android.googleapis.com", "push.services.mozilla.com", "push.apple.com", "notify.windows.com"];
+
+/** A subscription can only point to a browser's push service: the server must not post to any other address. */
+export function isPushServiceUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" && url.port === "" && PUSH_HOSTS.some((h) => url.hostname === h || url.hostname.endsWith(`.${h}`));
+  } catch {
+    return false;
+  }
+}
+
 export const pushSubscriptionInput = z.object({
-  endpoint: z.url().max(2000),
+  endpoint: z.url().max(2000).refine(isPushServiceUrl, { message: "Unknown push service" }),
   keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
 });

@@ -55,6 +55,21 @@ describe("formulas", () => {
     expect(() => run('prop("Inconnue")')).toThrow(/Colonne inconnue/);
   });
 
+  it("refuse results that would exhaust the server's memory", () => {
+    // Each nested replaceAll() multiplies the length by 11: about 2·10⁹ characters at the end without a limit.
+    let bomb = '"aaaaaaaaaa"';
+    for (let i = 0; i < 8; i++) bomb = `replaceAll(${bomb}, "", "aaaaaaaaaa")`;
+    expect(() => run(bomb)).toThrow(/trop grand/);
+    expect(() => run('join(prop("L"), "' + "x".repeat(200) + '")', { L: Array.from({ length: 1000 }, () => "a") })).toThrow(/trop grand/);
+    let concat = '"' + "x".repeat(1000) + '"';
+    for (let i = 0; i < 8; i++) concat = `(${concat} + ${concat})`;
+    expect(() => run(concat)).toThrow(/trop grand/);
+    // Thousands of nested parentheses: a clear error rather than a crash.
+    expect(() => parseFormula("(".repeat(5000) + "1" + ")".repeat(5000))).toThrow(/trop imbriquée/);
+    // Ordinary uses still work.
+    expect(run('replaceAll("a-b-c", "-", " / ")')).toEqual({ kind: "text", value: "a / b / c" });
+  });
+
   it("follows a column rename", () => {
     expect(renameFormulaReference('prop("HT") * prop( "HT" ) + prop("HTX")', "HT", "Montant HT")).toBe('prop("Montant HT") * prop("Montant HT") + prop("HTX")');
   });

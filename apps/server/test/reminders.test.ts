@@ -107,9 +107,13 @@ describe("reminders", () => {
 
   it("sends due reminders to the user's devices once", async () => {
     expect((await boris.get("/api/reminders/push-key")).json().publicKey).toMatch(/^[A-Za-z0-9_-]{80,}$/);
-    const sub = { endpoint: "https://push.example.com/abc", keys: { p256dh: "key", auth: "secret" } };
+    const sub = { endpoint: "https://fcm.googleapis.com/fcm/send/abc", keys: { p256dh: "key", auth: "secret" } };
     expect((await boris.post("/api/reminders/push-subscriptions", sub)).statusCode).toBe(200);
     expect((await boris.post("/api/reminders/push-subscriptions", { endpoint: "not a url", keys: sub.keys })).statusCode).toBe(400);
+    // Only a browser's push service: the server must not post to any other address (the local network…).
+    for (const endpoint of ["http://192.168.0.148:5000/x", "https://evil.example.com/push", "https://fcm.googleapis.com.evil.com/x"]) {
+      expect((await boris.post("/api/reminders/push-subscriptions", { endpoint, keys: sub.keys })).statusCode, endpoint).toBe(400);
+    }
 
     const page = await boris.createPage(ws, "Factures");
     await writeContent(

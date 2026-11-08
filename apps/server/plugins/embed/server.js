@@ -1,6 +1,6 @@
 // "embed" plugin, server side: preview of a link (title, description, image) read from the linked page.
-import { lookup } from "node:dns/promises";
-import net from "node:net";
+// Requests go through nootion.fetch, which refuses the server's local network after DNS resolution and on
+// every redirect (unless the "allowPrivateNetworks" setting, for administrators, says otherwise).
 
 const MAX_BYTES = 512 * 1024;
 const TIMEOUT_MS = 6000;
@@ -19,7 +19,14 @@ export function activate(nootion) {
       );
     const hit = cache.get(url.href);
     if (hit && Date.now() - hit.at < 60 * 60 * 1000) return hit.data;
-    const data = await preview(url, allowPrivate);
+    const get = (target) =>
+      nootion.fetch(target, {
+        maxRedirects: 0,
+        allowPrivate,
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+        headers: { "user-agent": "Mozilla/5.0 (compatible; Nootion link preview)", accept: "text/html,application/xhtml+xml" },
+      });
+    const data = await preview(url, get);
     if (cache.size > 500) cache.clear();
     cache.set(url.href, { at: Date.now(), data });
     return data;
@@ -37,56 +44,15 @@ function parseUrl(raw) {
   }
 }
 
-/** Loopback, private, link-local and other addresses that are not on the internet. */
-export function isPrivateAddress(ip) {
-  if (net.isIPv4(ip)) {
-    const [a, b] = ip.split(".").map(Number);
-    return (
-      a === 0 ||
-      a === 10 ||
-      a === 127 ||
-      a >= 224 ||
-      (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168) ||
-      (a === 100 && b >= 64 && b <= 127)
-    );
-  }
-  const v6 = ip.toLowerCase();
-  if (v6.startsWith("::ffff:")) return isPrivateAddress(v6.slice(7));
-  return (
-    v6 === "::" ||
-    v6 === "::1" ||
-    v6.startsWith("fc") ||
-    v6.startsWith("fd") ||
-    v6.startsWith("fe8") ||
-    v6.startsWith("fe9") ||
-    v6.startsWith("fea") ||
-    v6.startsWith("feb")
-  );
-}
-
-async function checkHost(url, allowPrivate) {
-  if (allowPrivate) return;
-  const host = url.hostname.replace(/^\[|\]$/g, "");
-  const addresses = net.isIP(host) ? [host] : (await lookup(host, { all: true }).catch(() => [])).map((a) => a.address);
-  if (!addresses.length) throw new Error("address not found");
-  if (addresses.some(isPrivateAddress)) throw new Error("local network address refused");
-}
-
-async function preview(start, allowPrivate) {
+async function preview(start, get) {
   let url = start;
   const fallback = { url: start.href, title: start.hostname, description: "", image: null, site: start.hostname };
   try {
     for (let hop = 0; hop < 4; hop++) {
-      await checkHost(url, allowPrivate);
-      const res = await fetch(url, {
-        redirect: "manual",
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-        headers: { "user-agent": "Mozilla/5.0 (compatible; Nootion link preview)", accept: "text/html,application/xhtml+xml" },
-      });
+      const res = await get(url);
       const location = res.headers.get("location");
       if (res.status >= 300 && res.status < 400 && location) {
+        await res.body?.cancel().catch(() => {});
         url = parseUrl(new URL(location, url).href);
         if (!url) return fallback;
         continue;

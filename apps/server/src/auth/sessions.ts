@@ -1,6 +1,6 @@
 import { and, eq, gt, lt } from "drizzle-orm";
 import type { Db } from "../db/index.js";
-import { sessions, users } from "../db/schema.js";
+import { apiTokens, oauthCodes, sessions, users } from "../db/schema.js";
 import { hashToken, newToken } from "./tokens.js";
 
 export const SESSION_COOKIE = "nootion_session";
@@ -30,6 +30,15 @@ export function deleteSession(db: Db, token: string): void {
 
 export function deleteUserSessions(db: Db, userId: string): void {
   db.delete(sessions).where(eq(sessions.userId, userId)).run();
+}
+
+/**
+ * Revokes every machine access of a user: personal API tokens, apps connected with OAuth (their tokens and refresh
+ * tokens) and pending OAuth codes. Done when the password changes, so whoever had stolen the account is out.
+ */
+export function revokeUserApiAccess(db: Db, userId: string): void {
+  db.delete(apiTokens).where(eq(apiTokens.userId, userId)).run();
+  db.delete(oauthCodes).where(eq(oauthCodes.userId, userId)).run();
 }
 
 export function purgeExpiredSessions(db: Db): void {

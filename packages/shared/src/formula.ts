@@ -86,6 +86,15 @@ export type FormulaNode =
   | { type: "cond"; test: FormulaNode; then: FormulaNode; else: FormulaNode };
 
 /** Parses an expression; throws FormulaError with the position of the problem. */
+/** Limits that keep a formula from exhausting the server's memory: texts and lists built by functions. */
+const MAX_TEXT = 100_000;
+const MAX_LIST = 10_000;
+const tooLarge = () => new FormulaError(t("formula.error.tooLarge"));
+function bounded<T extends FValue>(v: T): T {
+  if ((typeof v === "string" && v.length > MAX_TEXT) || (Array.isArray(v) && v.length > MAX_LIST)) throw tooLarge();
+  return v;
+}
+
 export function parseFormula(src: string): FormulaNode {
   if (!src.trim()) throw new FormulaError(t("formula.error.empty"), 0);
   const tokens = tokenize(src);
@@ -194,7 +203,14 @@ export function parseFormula(src: string): FormulaNode {
     throw new FormulaError(t("formula.error.unexpected", { token: tok.v }), tok.p);
   }
 
-  const node = ternary();
+  let node: FormulaNode;
+  try {
+    node = ternary();
+  } catch (e) {
+    // Thousands of nested parentheses: the stack overflows.
+    if (e instanceof RangeError) throw new FormulaError(t("formula.error.tooComplex"), 0);
+    throw e;
+  }
   if (peek().t !== "end") throw new FormulaError(t("formula.error.unexpected", { token: (peek() as { v: string }).v }), peek().p);
   return node;
 }
@@ -385,7 +401,16 @@ const BUILTINS: Record<string, Omit<FunctionSpec, "help">> = {
     max: Infinity,
     run: (a) => (a.some(Array.isArray) ? a.flatMap(list) : a.map(toText).join("")),
   },
-  join: { min: 1, max: 2, run: (a) => list(a[0]!).map(toText).join(a[1] === undefined ? ", " : toText(a[1]!)) },
+  join: {
+    min: 1,
+    max: 2,
+    run: (a) => {
+      const items = list(a[0]!).map(toText);
+      const sep = a[1] === undefined ? ", " : toText(a[1]!);
+      if (items.reduce((n, s) => n + s.length, 0) + Math.max(0, items.length - 1) * sep.length > MAX_TEXT) throw tooLarge();
+      return items.join(sep);
+    },
+  },
   contains: {
     min: 2,
     max: 2,
@@ -395,7 +420,19 @@ const BUILTINS: Record<string, Omit<FunctionSpec, "help">> = {
   upper: { min: 1, max: 1, run: (a) => toText(a[0]!).toUpperCase() },
   trim: { min: 1, max: 1, run: (a) => toText(a[0]!).trim() },
   replace: { min: 3, max: 3, run: (a) => toText(a[0]!).replace(toText(a[1]!), toText(a[2]!)) },
-  replaceAll: { min: 3, max: 3, run: (a) => toText(a[0]!).split(toText(a[1]!)).join(toText(a[2]!)) },
+  replaceAll: {
+    min: 3,
+    max: 3,
+    run: (a) => {
+      const text = toText(a[0]!);
+      const find = toText(a[1]!);
+      const by = toText(a[2]!);
+      const parts = text.split(find);
+      // Checked before joining: nested replaceAll() calls could otherwise build a text of gigabytes.
+      if (text.length + (parts.length - 1) * (by.length - find.length) > MAX_TEXT) throw tooLarge();
+      return parts.join(by);
+    },
+  },
   slice: {
     min: 2,
     max: 3,
@@ -536,8 +573,8 @@ export function evaluateFormula(node: FormulaNode, getProp: (name: string) => FV
         // A plugin's function may have been removed since the expression was parsed.
         const spec = Object.hasOwn(FUNCTIONS, n.name) ? FUNCTIONS[n.name] : undefined;
         if (!spec) throw new FormulaError(t("formula.error.unknownFunction", { name: n.name }));
-        if (spec.lazy) return spec.run([], n.args.map((a) => () => ev(a)));
-        return spec.run(n.args.map(ev), []);
+        if (spec.lazy) return bounded(spec.run([], n.args.map((a) => () => ev(a))));
+        return bounded(spec.run(n.args.map(ev), []));
       }
       case "binary": {
         if (n.op === "&&") return truthy(ev(n.left)) && truthy(ev(n.right));
@@ -546,7 +583,7 @@ export function evaluateFormula(node: FormulaNode, getProp: (name: string) => FV
         const b = ev(n.right);
         switch (n.op) {
           case "+":
-            if (typeof a === "string" || typeof b === "string") return toText(a) + toText(b);
+            if (typeof a === "string" || typeof b === "string") return bounded(toText(a) + toText(b));
             if (isDate(a) || isDate(b)) throw new FormulaError(t("formula.error.useDateAdd"));
             return num(a, "« + »") + num(b, "« + »");
           case "-":
@@ -573,7 +610,12 @@ export function evaluateFormula(node: FormulaNode, getProp: (name: string) => FV
       }
     }
   };
-  return ev(node);
+  try {
+    return ev(node);
+  } catch (e) {
+    if (e instanceof RangeError) throw new FormulaError(t("formula.error.tooComplex"));
+    throw e;
+  }
 }
 
 /** Result of a formula cell, as stored in row values. */
