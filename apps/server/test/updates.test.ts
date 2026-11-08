@@ -46,8 +46,12 @@ describe("versions", () => {
     expect(isNewer("3.1.0", "3.1.0-dev")).toBe(false);
     expect(isNewer("v3.1.1", "3.1.0")).toBe(true);
     expect(currentVersion()).toBe("3.1.0");
+    // A fork's version keeps the upstream release it is based on, then its own suffix (3.3.0-mynotion.1): the next
+    // upstream release is still announced, the one it is based on is not.
+    expect(isNewer("3.3.0", "3.3.0-mynotion.1")).toBe(false);
+    expect(isNewer("3.3.1", "3.3.0-mynotion.1")).toBe(true);
     process.env.NOOTION_VERSION = "develop";
-    expect(currentVersion()).toMatch(/^\d+\.\d+\.\d+-dev$/);
+    expect(currentVersion()).toMatch(/^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?-dev$/);
   });
 });
 
