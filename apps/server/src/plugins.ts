@@ -29,6 +29,7 @@ import { attachments, pluginUserData, plugins } from "./db/schema.js";
 import { attachmentPath, uploadsDir } from "./attachments.js";
 import { HttpError, notFound, unauthorized } from "./http.js";
 import { getPageRole, requirePageRole } from "./permissions.js";
+import { safeFetch, type SafeFetchInit } from "./safe-fetch.js";
 import { t } from "@nootion/shared";
 
 /** Built-in plugins ship next to the server code (src/ in dev, dist/ in the image). */
@@ -108,6 +109,12 @@ export interface ServerPluginApi {
   /** Address of Nootion as people open it (APP_URL), without a trailing slash. */
   appUrl: string;
   /**
+   * fetch() for addresses that come from users: http(s) only, refuses the server's local network (router, NAS…)
+   * after DNS resolution and on every redirect, unless the administrator allows it (ALLOW_PRIVATE_NETWORK_REQUESTS)
+   * or the plugin passes `allowPrivate` from a setting only an administrator can change.
+   */
+  fetch: (url: string | URL, init?: SafeFetchInit) => Promise<Response>;
+  /**
    * Calls Nootion's API as a user, with their rights (as if they had made the request): request(userId, "POST",
    * "/databases/<id>/query", { limit: 100 }). Resolves with the JSON answer; throws an HttpError on an error.
    */
@@ -162,6 +169,8 @@ export class PluginManager {
       log: FastifyBaseLogger;
       maxUploadMb: number;
       appUrl: string;
+      /** ALLOW_PRIVATE_NETWORK_REQUESTS: lets `nootion.fetch` reach the local network. */
+      allowPrivateRequests?: boolean;
       /** Calls the API in the process, as the given user. */
       inject: (userId: string, method: Method, path: string, body?: unknown) => Promise<{ status: number; json: any }>;
       /** Called after a plugin attached a file (to read its text for search). */
@@ -313,6 +322,7 @@ export class PluginManager {
       binary: (data, contentType) => new PluginBinary(data, contentType),
       redirect: (url) => new PluginRedirect(url),
       appUrl: this.opts.appUrl,
+      fetch: (url, init) => safeFetch(url, { ...init, allowPrivate: init?.allowPrivate === true || this.opts.allowPrivateRequests === true }),
       request: async (userId, method, apiPath, body) => {
         if (!apiPath.startsWith("/")) throw new Error('An API path starts with "/".');
         const res = await this.opts.inject(userId, method, apiPath, body);

@@ -360,7 +360,9 @@ export function computeFormulas(
         );
       } catch (e) {
         if (e instanceof FormulaError) result = { kind: "error", value: e.message };
-        else if (!(e instanceof EmptyFormula)) throw e;
+        // Anything else (a plugin function that throws, a value too large for the engine) stays in the cell:
+        // one formula must never make the whole database fail to load.
+        else if (!(e instanceof EmptyFormula)) result = { kind: "error", value: t("formula.error.failed") };
       }
       visiting.delete(prop.id);
       done.set(prop.id, result);

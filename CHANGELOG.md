@@ -5,6 +5,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [3.3.0-mynotion.1] - 2026-11-08
+
+Based on Nootion 3.3.0, with security fixes.
+
+### Security
+
+- Requests the server makes for users (webhooks of buttons and automations, link previews) can no longer reach its
+  local network: addresses are checked after DNS resolution, when connecting and on every redirect, IPv4 written as
+  IPv6 included. `ALLOW_PRIVATE_NETWORK_REQUESTS=true` allows the local network when it is needed. Plugins get the
+  same protection with `nootion.fetch`.
+- Push notification subscriptions can only point to the browsers' push services.
+- A formula can no longer exhaust the server's memory: texts and lists it builds are capped, very deep nesting is
+  refused, and an error stays in its cell instead of failing the whole database.
+- Signing out, changing or resetting the password ends live editing sessions, and the session is checked again for
+  every page opened. Changing or resetting the password also revokes API tokens and connected apps.
+- Password guessing is slowed down per account, whatever address it comes from: 5 free mistakes, then 1 minute,
+  2, 4… up to an hour. The per-address limit counts the IPv6 addresses of one connection as one client.
+- Updated `@fastify/static` (10), `drizzle-orm` (0.45) and `nodemailer` (10), which had known vulnerabilities.
+
 ## [3.3.0] - 2026-11-03
 
 ### Added
@@ -314,6 +333,7 @@ First public version.
 - Markdown (.zip), CSV and JSON export, CSV import, full backup download.
 - Single Docker image (amd64 and arm64), data in `/data`, migrations applied at startup.
 
+[3.3.0-mynotion.1]: ../../releases/tag/v3.3.0-mynotion.1
 [3.3.0]: ../../releases/tag/v3.3.0
 [3.2.1]: ../../releases/tag/v3.2.1
 [3.2.0]: ../../releases/tag/v3.2.0

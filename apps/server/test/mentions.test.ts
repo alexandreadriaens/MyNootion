@@ -23,7 +23,7 @@ beforeEach(async () => {
   ws = await boris.personalWorkspace();
   page = await boris.createPage(ws, "Budget");
   await boris.put(`/api/pages/${page}/shares`, { userId: aliceId, role: "viewer" });
-  await alice.post("/api/reminders/push-subscriptions", { endpoint: "https://push.example.com/alice", keys: { p256dh: "k", auth: "a" } });
+  await alice.post("/api/reminders/push-subscriptions", { endpoint: "https://fcm.googleapis.com/fcm/send/alice", keys: { p256dh: "k", auth: "a" } });
 });
 
 const mention = (id: string, userId: string, name: string) => ({ type: "userMention", attrs: { id, userId, name } });

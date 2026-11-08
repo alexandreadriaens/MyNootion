@@ -16,6 +16,8 @@ export const CONTENT_FIELD = "default";
 
 interface CollabContext {
   userId: string;
+  /** The session cookie that opened the socket: checked again for every document opened on it. */
+  session?: string;
 }
 
 export interface ProseMirrorNode {
@@ -138,6 +140,8 @@ export function createCollab(db: Db) {
     quiet: true,
 
     async onAuthenticate({ context, documentName, connectionConfig }) {
+      // A socket outlives nothing: signed out, password changed or session expired, it can't open documents anymore.
+      if (context.session !== undefined && findSessionUser(db, context.session)?.id !== context.userId) throw new Error("forbidden");
       const role = getPageRole(db, context.userId, documentName);
       if (!atLeast(role, "viewer")) throw new Error("forbidden");
       // Viewers and commenters receive updates but cannot send any.
@@ -178,9 +182,19 @@ export function createCollab(db: Db) {
       editors.delete(documentName);
     },
   });
+  // Whose each socket is, to cut a user off.
+  const owners = new WeakMap<object, string>();
   return Object.assign(hocuspocus, {
     sockets,
+    owners,
     storeHooks,
+    /**
+     * Drops the live sockets of one user (signed out, password changed). Their other devices reconnect at once with
+     * their own session; a socket whose session is gone is refused.
+     */
+    closeUser(userId: string) {
+      for (const socket of sockets) if (owners.get(socket) === userId) socket.close(4000, "revalidate");
+    },
     /**
      * Drops every live socket. Clients reconnect within a second and are authenticated again,
      * so anyone who just lost access is cut off while everybody else keeps editing.
@@ -208,8 +222,9 @@ export async function registerCollabRoute(app: FastifyInstance, collab: Collab) 
     const headers = new Headers();
     for (const [k, v] of Object.entries(req.headers)) if (typeof v === "string") headers.set(k, v);
     const request = new Request(`http://localhost${req.url}`, { headers });
-    const connection = collab.handleConnection(socket, request, { userId: user.id });
+    const connection = collab.handleConnection(socket, request, { userId: user.id, session: token });
     collab.sockets.add(socket);
+    collab.owners.set(socket, user.id);
     socket.on("message", (data: Buffer) => connection.handleMessage(new Uint8Array(data)));
     socket.on("pong", () => connection.touch());
     socket.on("close", (code: number, reason: Buffer) => {
