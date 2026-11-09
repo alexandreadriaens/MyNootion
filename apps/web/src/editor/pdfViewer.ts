@@ -150,7 +150,8 @@ export function openPdfViewer(opts: { url: string; name: string; downloadHref: s
   scroller.append(status);
 
   let scale = 1;
-  let fitScale = 1;
+  let fitPageScale = 1;
+  let fitWidthScale = 1;
   let pages: { page: PDFPageProxy; box: HTMLDivElement; canvas: HTMLCanvasElement; drawn: number; task: RenderTask | null }[] = [];
   let closed = false;
 
@@ -199,13 +200,15 @@ export function openPdfViewer(opts: { url: string; name: string; downloadHref: s
 
   const zoomOut = button(t("pdf.zoomOut"), "−", () => setScale(scale / 1.25));
   const zoomIn = button(t("pdf.zoomIn"), "+", () => setScale(scale * 1.25));
-  const fit = button(t("pdf.fitWidth"), "↔", () => setScale(fitScale));
+  // Two fits, as in usual readers: the whole page on the screen (the default), or the width of the screen.
+  const fitPage = button(t("pdf.fitPage"), "⤢", () => setScale(fitPageScale));
+  const fit = button(t("pdf.fitWidth"), "↔", () => setScale(fitWidthScale));
   const close = button(t("imageViewer.close"), "×", () => shut());
   close.classList.add("nootion-pdf-viewer__close");
   const print = button(t("pdf.print"), "🖨", () => printWith(print, opts.url, "🖨"));
-  bar.append(title, pageInfo, zoomOut, fit, zoomIn, print, download, close);
+  bar.append(title, pageInfo, zoomOut, fitPage, fit, zoomIn, print, download, close);
   overlay.append(bar, scroller);
-  const controls: HTMLElement[] = [zoomOut, fit, zoomIn, print, download, close];
+  const controls: HTMLElement[] = [zoomOut, fitPage, fit, zoomIn, print, download, close];
 
   const onKey = (e: KeyboardEvent) => {
     if (e.key === "Escape") {
@@ -244,10 +247,11 @@ export function openPdfViewer(opts: { url: string; name: string; downloadHref: s
       const doc = await loadPdf(opts.url);
       const list = await Promise.all(Array.from({ length: doc.numPages }, (_, i) => doc.getPage(i + 1)));
       if (closed) return;
-      // Fit the width of the screen (a phone), without going past 1.5× on a large one.
-      const width = list[0]!.getViewport({ scale: 1 }).width;
-      fitScale = Math.min(1.5, (scroller.clientWidth - 32) / width);
-      scale = fitScale;
+      // The first page whole on the screen. On a phone the width is what limits, so it fills the width there.
+      const first = list[0]!.getViewport({ scale: 1 });
+      fitWidthScale = (scroller.clientWidth - 32) / first.width;
+      fitPageScale = Math.min(fitWidthScale, (scroller.clientHeight - 32) / first.height);
+      scale = fitPageScale;
       status.remove();
       pages = list.map((page, i) => {
         const box = document.createElement("div");

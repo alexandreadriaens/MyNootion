@@ -395,6 +395,7 @@ export const fr: Messages = {
   "pdf.zoomIn": "Agrandir (+)",
   "pdf.zoomOut": "Réduire (−)",
   "pdf.fitWidth": "Ajuster à la largeur",
+  "pdf.fitPage": "Page entière",
   "pdf.print": "Imprimer",
   "pdf.preparingPrint": "Préparation…",
   "command.link": "Mentionner une page existante",

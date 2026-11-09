@@ -393,6 +393,7 @@ export const en = {
   "pdf.zoomIn": "Zoom in (+)",
   "pdf.zoomOut": "Zoom out (−)",
   "pdf.fitWidth": "Fit the width",
+  "pdf.fitPage": "Whole page",
   "pdf.print": "Print",
   "pdf.preparingPrint": "Preparing…",
   "command.link": "Mention an existing page",
