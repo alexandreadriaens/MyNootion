@@ -99,7 +99,7 @@ body {
 .nootion-content h3 {
   @apply mt-4 text-xl font-semibold;
 }
-.nootion-content a:not(.page-link):not(.file-attachment):not(.home-widget a):not(.calendar-block a) {
+.nootion-content a:not(.page-link):not(.file-attachment):not(.file-pdf__action):not(.home-widget a):not(.calendar-block a) {
   @apply text-blue-600 underline decoration-blue-300 underline-offset-2 dark:text-blue-400;
 }
 .nootion-content ul {
@@ -372,6 +372,143 @@ body {
 }
 .nootion-content .file-video.ProseMirror-selectednode video {
   @apply outline-2 outline-blue-500;
+}
+/* A PDF: first page, name, size and pages, "Read" and "Download" (editor/nodes.ts, editor/pdfViewer.ts). */
+.nootion-content .file-pdf {
+  @apply my-2 flex w-full max-w-md items-stretch gap-3 rounded-lg border border-neutral-200 p-2 dark:border-neutral-700;
+}
+.nootion-content .file-pdf.ProseMirror-selectednode {
+  @apply outline-2 outline-blue-500;
+}
+.nootion-content .file-pdf__preview {
+  @apply flex w-[120px] shrink-0 cursor-zoom-in items-start justify-center overflow-hidden rounded border border-neutral-200 bg-white dark:border-neutral-700;
+  min-height: 80px;
+  max-height: 170px;
+}
+.nootion-content .file-pdf__placeholder {
+  @apply m-auto text-xs font-semibold text-red-600;
+}
+.nootion-content .file-pdf__info {
+  @apply flex min-w-0 flex-col justify-center gap-1;
+}
+.nootion-content .file-pdf__name {
+  @apply truncate text-sm font-medium;
+}
+.nootion-content .file-pdf__meta {
+  @apply text-xs text-neutral-500 dark:text-neutral-400;
+}
+.nootion-content .file-pdf__actions {
+  @apply mt-1 flex flex-wrap gap-1.5;
+}
+.nootion-content .file-pdf__action {
+  @apply rounded-md border border-neutral-200 px-2.5 py-1 text-xs text-neutral-700 no-underline hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800;
+}
+
+/* Full-screen PDF reader. */
+.nootion-pdf-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: rgb(38 38 38);
+  color: white;
+}
+.nootion-pdf-viewer__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: max(0.5rem, env(safe-area-inset-top)) 0.5rem 0.5rem 0.75rem;
+  background: rgb(23 23 23);
+  font-size: 0.875rem;
+}
+.nootion-pdf-viewer__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.nootion-pdf-viewer__pages {
+  margin: 0 0.5rem;
+  white-space: nowrap;
+  color: rgb(255 255 255 / 0.7);
+  font-size: 0.8rem;
+}
+.nootion-pdf-viewer__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.5rem;
+  color: white;
+  font-size: 1.1rem;
+  text-decoration: none;
+}
+.nootion-pdf-viewer__button:hover,
+.nootion-pdf-viewer__button:focus-visible {
+  background: rgb(255 255 255 / 0.14);
+}
+.nootion-pdf-viewer__close {
+  font-size: 1.6rem;
+}
+.nootion-pdf-viewer__scroller {
+  flex: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 1rem 1rem max(1rem, env(safe-area-inset-bottom));
+}
+.nootion-pdf-viewer__page {
+  margin: 0 auto 1rem;
+  background: white;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+}
+.nootion-pdf-viewer__page canvas {
+  display: block;
+}
+.nootion-pdf-viewer__status {
+  margin-top: 30vh;
+  text-align: center;
+  color: rgb(255 255 255 / 0.8);
+  line-height: 2;
+}
+.nootion-pdf-viewer__fallback {
+  color: white;
+  text-decoration: underline;
+}
+@media (max-width: 480px) {
+  .nootion-pdf-viewer__pages {
+    display: none;
+  }
+}
+
+/* Printing a PDF (editor/pdfViewer.ts printPdf): only its pages on the paper, one per sheet. */
+.nootion-pdf-print {
+  display: none;
+}
+@media print {
+  body.nootion-printing-pdf > *:not(.nootion-pdf-print) {
+    display: none !important;
+  }
+  body.nootion-printing-pdf {
+    background: white !important;
+  }
+  .nootion-pdf-print {
+    display: block;
+  }
+  .nootion-pdf-print img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 100vh;
+    object-fit: contain;
+    break-after: page;
+  }
+  .nootion-pdf-print img:last-child {
+    break-after: auto;
+  }
 }
 .nootion-content .file-video__unsupported {
   @apply rounded-md bg-neutral-100 px-3 py-6 text-center text-sm text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400;
