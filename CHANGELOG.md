@@ -14,6 +14,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Uploaded videos (MP4, WebM, phone .mov…) play in the page, with the browser's player (play, timeline, volume,
   full screen), with a "Download" button under it; "/video" uploads one. Public links play them too. A browser that can't
   play a video says so and offers the download.
+- PDFs show a card with their first page, name, size and number of pages, "Read" and "Download". "Read" (or a
+  click on the first page) opens a full-screen reader: every page, zoom (buttons, + and -), fit to width, page
+  number, download; Escape closes it. Drawn with PDF.js, so it works the same on phones (whose browsers often show
+  only the first page of a PDF) and on public links; loaded only when a page holds a PDF.
 
 ### Fixed
 
