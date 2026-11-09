@@ -36,13 +36,25 @@ export function openImageViewer(src: string, alt = ""): void {
   close.textContent = "×";
 
   const original = document.createElement("a");
-  original.className = "nootion-image-viewer__original";
+  original.className = "nootion-image-viewer__action";
   original.href = src;
   original.target = "_blank";
   original.rel = "noopener noreferrer";
   original.textContent = t("imageViewer.original");
 
-  overlay.append(scroller, close, original);
+  const download = document.createElement("a");
+  download.className = "nootion-image-viewer__action";
+  download.href = downloadUrl(src);
+  // The server names the file (its original name); for an image from another site, the browser decides.
+  download.setAttribute("download", "");
+  download.textContent = t("imageViewer.download");
+
+  const actions = document.createElement("div");
+  actions.className = "nootion-image-viewer__actions";
+  actions.append(original, download);
+
+  overlay.append(scroller, close, actions);
+  const controls: HTMLElement[] = [close, original, download];
 
   const zoom = (on: boolean, at?: { x: number; y: number }) => {
     overlay.classList.toggle("is-zoomed", on);
@@ -68,9 +80,10 @@ export function openImageViewer(src: string, alt = ""): void {
       e.stopPropagation();
       shut();
     } else if (e.key === "Tab") {
-      // The focus stays in the viewer: its two controls.
+      // The focus stays in the viewer, going round its controls.
       e.preventDefault();
-      (document.activeElement === close ? original : close).focus();
+      const at = controls.indexOf(document.activeElement as HTMLElement);
+      controls[(at + (e.shiftKey ? controls.length - 1 : 1)) % controls.length]!.focus();
     }
   };
 
@@ -95,6 +108,15 @@ export function openImageViewer(src: string, alt = ""): void {
   document.body.style.overflow = "hidden";
   document.body.append(overlay);
   close.focus({ preventScroll: true });
+}
+
+/**
+ * Address that downloads the image: Nootion's own files (pages and public links) are sent as a download, with their
+ * original name; an image from another site keeps its address.
+ */
+export function downloadUrl(src: string): string {
+  if (!/^\/api\/(public\/[^/?#]+\/)?attachments\/[0-9a-f-]{36}(\?|$)/.test(src)) return src;
+  return `${src}${src.includes("?") ? "&" : "?"}download`;
 }
 
 /** The image node a DOM element belongs to, if it is the picture of an image block of the page. */

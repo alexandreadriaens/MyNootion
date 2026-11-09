@@ -172,6 +172,7 @@ export const fr: Messages = {
   "imageViewer.zoom": "Taille réelle",
   "imageViewer.fit": "Adapter à l'écran",
   "imageViewer.original": "Ouvrir l'original",
+  "imageViewer.download": "Télécharger",
   "block.editedBy": "Dernière modification par {name}",
   "block.linkCopied": "Lien copié",
   "block.moveDown": "Descendre",

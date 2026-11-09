@@ -223,7 +223,13 @@ describe("attached files", () => {
     expect((await upload(alice, page, "x.txt", "text/plain", "x")).status).toBe(404);
 
     const link = (await boris.put(`/api/pages/${page}/public-link`, {})).json().link;
-    expect((await new Client(app).get(`/api/public/${link.token}/attachments/${attachment.id}`)).statusCode).toBe(200);
+    const shown = await new Client(app).get(`/api/public/${link.token}/attachments/${attachment.id}`);
+    expect(shown.statusCode).toBe(200);
+    expect(shown.headers["content-disposition"]).toMatch(/^inline/);
+    // "Download" in the image viewer: saved as a file with its name, through the public link too.
+    const saved = await new Client(app).get(`/api/public/${link.token}/attachments/${attachment.id}?download`);
+    expect(saved.statusCode).toBe(200);
+    expect(saved.headers["content-disposition"]).toMatch(/^attachment; filename\*=UTF-8''/);
   });
 
   it("an HTML or SVG file is always downloaded, never displayed", async () => {

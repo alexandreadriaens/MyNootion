@@ -266,19 +266,24 @@ body {
 .nootion-image-viewer__close:focus-visible {
   background: rgb(255 255 255 / 0.24);
 }
-.nootion-image-viewer__original {
+.nootion-image-viewer__actions {
   position: absolute;
   bottom: max(0.75rem, env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+.nootion-image-viewer__action {
   padding: 0.35rem 0.75rem;
   border-radius: 9999px;
   font-size: 0.8rem;
   color: rgb(255 255 255 / 0.85);
   background: rgb(255 255 255 / 0.12);
 }
-.nootion-image-viewer__original:hover,
-.nootion-image-viewer__original:focus-visible {
+.nootion-image-viewer__action:hover,
+.nootion-image-viewer__action:focus-visible {
   background: rgb(255 255 255 / 0.24);
 }
 .nootion-content .callout {

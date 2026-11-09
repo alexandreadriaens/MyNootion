@@ -138,10 +138,11 @@ export const publicRoutes: FastifyPluginAsync = async (app) => {
     return { database: { ...data, properties: publicProperties(data.properties), people: {}, templates: [], defaultTemplateId: null } };
   });
 
-  app.get<{ Params: { token: string; id: string } }>("/:token/attachments/:id", async (req, reply) => {
+  app.get<{ Params: { token: string; id: string }; Querystring: { download?: string } }>("/:token/attachments/:id", async (req, reply) => {
     const link = resolve(req.params.token);
     const a = db.select().from(attachments).where(eq(attachments.id, req.params.id)).get();
     if (!a || !inScope(link, a.pageId)) throw notFound();
-    return sendAttachment(reply, app.config.dataDir, a);
+    // ?download: saved as a file (its original name) instead of shown, as for signed-in users.
+    return sendAttachment(reply, app.config.dataDir, a, req.query.download !== undefined);
   });
 };

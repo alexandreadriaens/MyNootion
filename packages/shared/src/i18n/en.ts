@@ -170,6 +170,7 @@ export const en = {
   "imageViewer.zoom": "Real size",
   "imageViewer.fit": "Fit to the screen",
   "imageViewer.original": "Open the original",
+  "imageViewer.download": "Download",
   "block.editedBy": "Last edited by {name}",
   "block.linkCopied": "Link copied",
   "block.moveDown": "Move down",
