@@ -19,6 +19,7 @@ import {
   Link,
   List,
   ListOrdered,
+  Maximize2,
   MessageSquare,
   Palette,
   Plus,
@@ -34,6 +35,7 @@ import { editedLabel } from "../components/EditedAt";
 import { copyText } from "../lib/browser";
 import { canTurnInto, currentKind, deleteBlock, duplicateBlock, moveBlock, stillThere, turnInto, type Block, type TurnInto } from "./blockActions";
 import { canColor, ensureBlockId, lastEdit, setBlockColor, type BlockColor } from "./blockAttrs";
+import { openImageViewer } from "./imageViewer";
 
 /**
  * The handles shown left of the block under the mouse, as in Notion: "+" adds a block below it (the "/" menu opens),
@@ -248,6 +250,17 @@ function BlockMenu({
     : [];
 
   const actions: Action[] = [
+    // An image: seen full screen (also with a double click on it, or a click when the page is read-only).
+    ...(block.node.type.name === "image" && block.node.attrs.src
+      ? [
+          {
+            id: "view-image",
+            label: t("imageViewer.open"),
+            icon: <Maximize2 size={16} />,
+            run: act(() => openImageViewer(String(block.node.attrs.src), String(block.node.attrs.alt ?? ""))),
+          },
+        ]
+      : []),
     ...(kinds.length ? [{ id: "turn", label: t("block.turnInto"), icon: <Repeat2 size={16} />, sub: "turn" as const, run: open("turn") }] : []),
     ...(colors.length ? [{ id: "color", label: t("block.color"), icon: <Palette size={16} />, sub: "color" as const, run: open("color") }] : []),
     {
