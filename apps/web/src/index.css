@@ -368,7 +368,7 @@ body {
   @apply max-h-[70vh] w-full rounded-md bg-black;
 }
 .nootion-content .file-video .file-attachment {
-  @apply border-transparent px-1 py-0.5 text-xs text-neutral-500 dark:text-neutral-400;
+  @apply px-2.5 py-1 text-xs text-neutral-600 dark:text-neutral-300;
 }
 .nootion-content .file-video.ProseMirror-selectednode video {
   @apply outline-2 outline-blue-500;

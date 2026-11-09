@@ -385,6 +385,7 @@ export const fr: Messages = {
   "command.image": "Envoyer une image",
   "command.video": "Envoyer une vidéo, lue dans la page",
   "file.videoUnsupported": "Ce navigateur ne sait pas lire cette vidéo. Télécharge-la pour la voir.",
+  "file.download": "Télécharger",
   "command.link": "Mentionner une page existante",
   "command.numbers": "Liste 1, 2, 3",
   "command.page": "Créer une page dans celle-ci",

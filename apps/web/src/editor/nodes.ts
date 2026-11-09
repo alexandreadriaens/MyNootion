@@ -123,7 +123,11 @@ export const FileAttachment = Node.create({
         note.textContent = t("file.videoUnsupported");
         video.replaceWith(note);
       });
-      dom.append(video, link(node.attrs));
+      // Under a player, the link says plainly what it does: download the video.
+      const download = link(node.attrs);
+      download.textContent = `⬇ ${t("file.download")} · ${node.attrs.name} · ${formatSize(Number(node.attrs.size) || 0)}`;
+      download.title = t("file.download");
+      dom.append(video, download);
       return {
         dom,
         // The player's own controls (play, timeline, volume, full screen) are not editor clicks or drags.
