@@ -99,8 +99,26 @@ body {
 .nootion-content h3 {
   @apply mt-4 text-xl font-semibold;
 }
-.nootion-content a:not(.page-link):not(.file-attachment):not(.file-pdf__action):not(.home-widget a):not(.calendar-block a) {
+.nootion-content a:not(.page-link):not(.file-attachment):not(.file-pdf__action):not(.nootion-link-mention):not(.home-widget a):not(.calendar-block a) {
   @apply text-blue-600 underline decoration-blue-300 underline-offset-2 dark:text-blue-400;
+}
+/* A link shown as a mention (editor/pasteLink.tsx): the site's icon and the page's title, as in Notion. */
+.nootion-content a.nootion-link-mention {
+  @apply rounded-sm font-medium text-neutral-800 no-underline dark:text-neutral-100;
+  border-bottom: 1px solid rgb(163 163 163 / 0.6);
+}
+.nootion-content a.nootion-link-mention:hover {
+  @apply bg-neutral-100 dark:bg-neutral-800;
+}
+.nootion-content a img.nootion-link-mention__icon {
+  display: inline-block;
+  width: 1.05em;
+  height: 1.05em;
+  margin: 0 0.3em 0 0;
+  vertical-align: -0.15em;
+  border-radius: 3px;
+  object-fit: contain;
+  cursor: pointer;
 }
 .nootion-content ul {
   @apply list-disc pl-6;
