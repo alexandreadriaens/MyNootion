@@ -11,6 +11,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
   (public links included), or "View full screen" in the image's block menu. A click on it switches to its real
   size (then the view scrolls); Escape, the close button or a click beside it closes; "Open the original" opens
   the file itself and "Download" saves it with its name, from public links too.
+- Uploaded videos (MP4, WebM, phone .mov…) play in the page, with the browser's player (play, timeline, volume,
+  full screen), above their download link; "/video" uploads one. Public links play them too. A browser that can't
+  play a video says so and offers the download.
+
+### Fixed
+
+- Attachments are sent in parts when a player asks for it (HTTP ranges): videos start faster, can be seeked, and
+  play on iPhone and Safari, which need it. Videos from phones (.mov) and more audio formats are shown instead of
+  being downloaded.
 
 ## [3.3.0-mynotion.1] - 2026-11-08
 

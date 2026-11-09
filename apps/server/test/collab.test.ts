@@ -232,6 +232,35 @@ describe("attached files", () => {
     expect(saved.headers["content-disposition"]).toMatch(/^attachment; filename\*=UTF-8''/);
   });
 
+  it("a video is sent in parts, so that players start fast and can seek (Safari needs it)", async () => {
+    const ws = await boris.personalWorkspace();
+    const page = await boris.createPage(ws, "Vacances");
+    const body = "0123456789".repeat(100);
+    const { attachment } = (await (await upload(boris, page, "plage.mov", "video/quicktime", body)).json()) as { attachment: { id: string; url: string } };
+    const get = (range?: string) => fetch(`http://${base}${attachment.url}`, { headers: { cookie: boris.cookie, ...(range ? { range } : {}) } });
+
+    const whole = await get();
+    expect(whole.status).toBe(200);
+    expect(whole.headers.get("accept-ranges")).toBe("bytes");
+    expect(whole.headers.get("content-type")).toBe("video/quicktime");
+    expect(whole.headers.get("content-disposition")).toMatch(/^inline/);
+
+    const part = await get("bytes=10-19");
+    expect(part.status).toBe(206);
+    expect(part.headers.get("content-range")).toBe("bytes 10-19/1000");
+    expect(await part.text()).toBe("0123456789");
+    const end = await get("bytes=995-");
+    expect(end.headers.get("content-range")).toBe("bytes 995-999/1000");
+    expect((await get("bytes=-3")).headers.get("content-range")).toBe("bytes 997-999/1000");
+    expect((await get("bytes=5000-")).status).toBe(416);
+
+    // Through a public link too.
+    const link = (await boris.put(`/api/pages/${page}/public-link`, {})).json().link;
+    const pub = await fetch(`http://${base}/api/public/${link.token}/attachments/${attachment.id}`, { headers: { range: "bytes=0-4" } });
+    expect(pub.status).toBe(206);
+    expect(await pub.text()).toBe("01234");
+  });
+
   it("an HTML or SVG file is always downloaded, never displayed", async () => {
     const ws = await boris.personalWorkspace();
     const page = await boris.createPage(ws, "Pièges");

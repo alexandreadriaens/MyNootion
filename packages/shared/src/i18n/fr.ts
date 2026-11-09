@@ -383,6 +383,8 @@ export const fr: Messages = {
   "command.h3": "Petit titre",
   "command.habitTracker": "Suivi d'habitude",
   "command.image": "Envoyer une image",
+  "command.video": "Envoyer une vidéo, lue dans la page",
+  "file.videoUnsupported": "Ce navigateur ne sait pas lire cette vidéo. Télécharge-la pour la voir.",
   "command.link": "Mentionner une page existante",
   "command.numbers": "Liste 1, 2, 3",
   "command.page": "Créer une page dans celle-ci",

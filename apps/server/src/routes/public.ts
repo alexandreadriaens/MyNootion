@@ -143,6 +143,6 @@ export const publicRoutes: FastifyPluginAsync = async (app) => {
     const a = db.select().from(attachments).where(eq(attachments.id, req.params.id)).get();
     if (!a || !inScope(link, a.pageId)) throw notFound();
     // ?download: saved as a file (its original name) instead of shown, as for signed-in users.
-    return sendAttachment(reply, app.config.dataDir, a, req.query.download !== undefined);
+    return sendAttachment(reply, app.config.dataDir, a, req.query.download !== undefined, req.headers.range);
   });
 };

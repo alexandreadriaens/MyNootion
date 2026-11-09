@@ -92,7 +92,55 @@ export const FileAttachment = Node.create({
           commands.insertContent({ type: this.name, attrs }),
     };
   },
+  // A video gets a player above its download link; any other file stays a link (as renderHTML draws it).
+  addNodeView() {
+    return ({ node }) => {
+      const link = (attrs: Record<string, unknown>) => {
+        const a = document.createElement("a");
+        a.setAttribute("data-file", "");
+        a.className = "file-attachment";
+        if (attrs.url) a.href = `${attrs.url}?download`;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.textContent = `📎 ${attrs.name} · ${formatSize(Number(attrs.size) || 0)}`;
+        return a;
+      };
+      const isVideo = !!node.attrs.url && isVideoFile(String(node.attrs.mimeType ?? ""), String(node.attrs.name ?? ""));
+      if (!isVideo) return { dom: link(node.attrs), update: (n) => n.type === node.type && !isVideoFile(String(n.attrs.mimeType ?? ""), String(n.attrs.name ?? "")) && sameFile(n.attrs, node.attrs) };
+
+      const dom = document.createElement("div");
+      dom.className = "file-video";
+      const video = document.createElement("video");
+      video.src = String(node.attrs.url);
+      video.controls = true;
+      // Only the first frame and the duration until someone presses play: a page full of videos stays light.
+      video.preload = "metadata";
+      video.playsInline = true;
+      video.setAttribute("playsinline", "");
+      video.addEventListener("error", () => {
+        const note = document.createElement("div");
+        note.className = "file-video__unsupported";
+        note.textContent = t("file.videoUnsupported");
+        video.replaceWith(note);
+      });
+      dom.append(video, link(node.attrs));
+      return {
+        dom,
+        // The player's own controls (play, timeline, volume, full screen) are not editor clicks or drags.
+        stopEvent: (event) => event.target instanceof globalThis.Node && video.contains(event.target),
+        ignoreMutation: () => true,
+        update: (n) => n.type === node.type && sameFile(n.attrs, node.attrs),
+      };
+    };
+  },
 });
+
+const sameFile = (a: Record<string, unknown>, b: Record<string, unknown>) => a.url === b.url && a.name === b.name && a.size === b.size && a.mimeType === b.mimeType;
+
+/** Videos browsers can usually play: by type, or by name when the type is missing. */
+export function isVideoFile(mimeType: string, name: string): boolean {
+  return mimeType.startsWith("video/") || /\.(mp4|m4v|mov|webm|ogv)$/i.test(name);
+}
 
 /**
  * Inline link to another page. In the app the title is looked up live (and hidden when the reader
