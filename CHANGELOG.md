@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+
+- Images can be seen full screen: a double click on an image while editing, a click when the page is read-only
+  (public links included), or "View full screen" in the image's block menu. A click on it switches to its real
+  size (then the view scrolls); Escape, the close button or a click beside it closes; "Open the original" opens
+  the file itself.
+
 ## [3.3.0-mynotion.1] - 2026-11-08
 
 Based on Nootion 3.3.0, with security fixes.
