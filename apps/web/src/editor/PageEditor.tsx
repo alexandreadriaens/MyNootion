@@ -27,6 +27,7 @@ import { MobileToolbar } from "./MobileToolbar";
 import { BlockHandle } from "./BlockHandle";
 import { BlockShortcuts } from "./blockActions";
 import { BlockFlash, EditTracking, findBlockById, flashBlock } from "./blockAttrs";
+import { PasteLinkMenu, PasteLinkMenuView } from "./pasteLink";
 import { useIsTouch } from "../lib/mobile";
 import type { CommentThread } from "@nootion/shared";
 import { CommentHighlights, selectionAnchor, setCommentHighlights } from "../comments/highlights";
@@ -212,6 +213,7 @@ function CollabEditor({
         CommentHighlights.configure({ onOpen: (id) => commentsRef.current?.onOpen(id) }),
         BlockShortcuts,
         BlockFlash,
+        PasteLinkMenu,
         EditTracking.configure({ user: user ? { id: user.id, name: user.name } : null }),
       ],
       editorProps: {
@@ -303,6 +305,7 @@ function CollabEditor({
       {editor && comments?.canComment && (touch || !canEdit) && <CommentMenu editor={editor} onComment={() => startComment(editor, comments)} />}
       {editor && canEdit && touch && <MobileToolbar editor={editor} />}
       {editor && canEdit && <TableMenu editor={editor} />}
+      {editor && canEdit && <PasteLinkMenuView editor={editor} />}
       {editor && editable && !touch && (
         <BlockHandle
           editor={editor}

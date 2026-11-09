@@ -16,6 +16,7 @@ import { CarouselView, HabitView, QuoteView, WeatherView } from "./widgets/Extra
 import { intlLocale, reminderTime, t } from "@nootion/shared";
 import { formatMentionDate } from "../lib/reminders";
 import { randomId } from "../lib/browser";
+import { openPdfViewer, printWith, renderPdfPreview } from "./pdfViewer";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -92,7 +93,151 @@ export const FileAttachment = Node.create({
           commands.insertContent({ type: this.name, attrs }),
     };
   },
+  // A video gets a player above its download link, a PDF a card with its first page (and a full-screen reader); any
+  // other file stays a link (as renderHTML draws it).
+  addNodeView() {
+    return ({ node }) => {
+      const link = (attrs: Record<string, unknown>) => {
+        const a = document.createElement("a");
+        a.setAttribute("data-file", "");
+        a.className = "file-attachment";
+        if (attrs.url) a.href = `${attrs.url}?download`;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.textContent = `📎 ${attrs.name} · ${formatSize(Number(attrs.size) || 0)}`;
+        return a;
+      };
+      const kind = fileKind(node.attrs);
+      const update = (n: typeof node) => n.type === node.type && fileKind(n.attrs) === kind && sameFile(n.attrs, node.attrs);
+      if (kind === "pdf") return pdfCard(node.attrs, update);
+      if (kind !== "video") return { dom: link(node.attrs), update };
+
+      const dom = document.createElement("div");
+      dom.className = "file-video";
+      const video = document.createElement("video");
+      video.src = String(node.attrs.url);
+      video.controls = true;
+      // Only the first frame and the duration until someone presses play: a page full of videos stays light.
+      video.preload = "metadata";
+      video.playsInline = true;
+      video.setAttribute("playsinline", "");
+      video.addEventListener("error", () => {
+        const note = document.createElement("div");
+        note.className = "file-video__unsupported";
+        note.textContent = t("file.videoUnsupported");
+        video.replaceWith(note);
+      });
+      // Under a player, the link says plainly what it does: download the video.
+      const download = link(node.attrs);
+      download.textContent = `⬇ ${t("file.download")} · ${node.attrs.name} · ${formatSize(Number(node.attrs.size) || 0)}`;
+      download.title = t("file.download");
+      dom.append(video, download);
+      return {
+        dom,
+        // The player's own controls (play, timeline, volume, full screen) are not editor clicks or drags.
+        stopEvent: (event) => event.target instanceof globalThis.Node && video.contains(event.target),
+        ignoreMutation: () => true,
+        update,
+      };
+    };
+  },
 });
+
+const sameFile = (a: Record<string, unknown>, b: Record<string, unknown>) => a.url === b.url && a.name === b.name && a.size === b.size && a.mimeType === b.mimeType;
+
+function fileKind(attrs: Record<string, unknown>): "video" | "pdf" | "other" {
+  if (!attrs.url) return "other";
+  const type = String(attrs.mimeType ?? "");
+  const name = String(attrs.name ?? "");
+  if (isVideoFile(type, name)) return "video";
+  if (type === "application/pdf" || /\.pdf$/i.test(name)) return "pdf";
+  return "other";
+}
+
+/**
+ * A PDF in a page: its first page (drawn once the card comes into view), its name, size and number of pages, "Read"
+ * (full-screen reader, also by clicking the first page) and "Download".
+ */
+function pdfCard(attrs: Record<string, unknown>, update: (n: import("@tiptap/pm/model").Node) => boolean) {
+  const url = String(attrs.url);
+  const name = String(attrs.name ?? "document.pdf");
+  const size = formatSize(Number(attrs.size) || 0);
+  const open = () => openPdfViewer({ url, name, downloadHref: `${url}?download` });
+
+  const dom = document.createElement("div");
+  dom.className = "file-pdf";
+  const preview = document.createElement("button");
+  preview.type = "button";
+  preview.className = "file-pdf__preview";
+  preview.title = t("pdf.read");
+  preview.setAttribute("aria-label", `${t("pdf.read")} : ${name}`);
+  const canvas = document.createElement("canvas");
+  const placeholder = document.createElement("span");
+  placeholder.className = "file-pdf__placeholder";
+  placeholder.textContent = "PDF";
+  preview.append(placeholder);
+  preview.addEventListener("click", open);
+
+  const info = document.createElement("div");
+  info.className = "file-pdf__info";
+  const title = document.createElement("div");
+  title.className = "file-pdf__name";
+  title.textContent = name;
+  const meta = document.createElement("div");
+  meta.className = "file-pdf__meta";
+  meta.textContent = size;
+  const actions = document.createElement("div");
+  actions.className = "file-pdf__actions";
+  const read = document.createElement("button");
+  read.type = "button";
+  read.className = "file-pdf__action";
+  read.textContent = `📖 ${t("pdf.read")}`;
+  read.addEventListener("click", open);
+  const download = document.createElement("a");
+  download.className = "file-pdf__action";
+  download.href = `${url}?download`;
+  download.setAttribute("download", "");
+  download.textContent = `⬇ ${t("file.download")}`;
+  const print = document.createElement("button");
+  print.type = "button";
+  print.className = "file-pdf__action";
+  const printLabel = `🖨 ${t("pdf.print")}`;
+  print.textContent = printLabel;
+  print.addEventListener("click", () => printWith(print, url, printLabel));
+  actions.append(read, download, print);
+  info.append(title, meta, actions);
+  dom.append(preview, info);
+
+  // The first page is drawn only when the card comes near the screen: a long page full of PDFs stays light.
+  const io = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      io.disconnect();
+      renderPdfPreview(url, canvas, 120)
+        .then((pages) => {
+          placeholder.replaceWith(canvas);
+          meta.textContent = `${size} · ${pages === 1 ? t("pdf.onePage") : t("pdf.pageCount", { count: String(pages) })}`;
+        })
+        .catch(() => (placeholder.textContent = "PDF"));
+    },
+    { rootMargin: "400px 0px" },
+  );
+  io.observe(dom);
+
+  return {
+    dom,
+    // Its buttons are buttons, not clicks that select the block.
+    stopEvent: (event: Event) => event.target instanceof globalThis.Node && (preview.contains(event.target) || actions.contains(event.target)),
+    ignoreMutation: () => true,
+    update,
+    destroy: () => io.disconnect(),
+  };
+}
+
+/** Videos browsers can usually play: by type, or by name when the type is missing. */
+export function isVideoFile(mimeType: string, name: string): boolean {
+  return mimeType.startsWith("video/") || /\.(mp4|m4v|mov|webm|ogv)$/i.test(name);
+}
 
 /**
  * Inline link to another page. In the app the title is looked up live (and hidden when the reader

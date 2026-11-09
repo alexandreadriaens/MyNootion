@@ -188,6 +188,26 @@ nootion.registerFileSource({
 });
 ```
 
+### Pasted links
+
+When a link is pasted alone in a page, a menu offers to keep it as a link, to make it a mention, a bookmark or an
+embed. Bookmarks and embeds are blocks of a plugin: the first enabled plugin calling `registerLinkHandler` makes them
+(the **Embeds** plugin does).
+
+```js
+nootion.registerLinkHandler({
+  // The block (declared in the manifest) that bookmarks and embeds are.
+  blockId: "embed",
+  // The block's data that shows the link's content (a player…), or null when it can't be embedded:
+  // "Embed" is only offered when this returns data.
+  embed: (url) => (isVideo(url) ? { url, kind: "frame" } : null),
+  // The block's data for a card with the page's title, description and image.
+  bookmark: async (url) => ({ url, kind: "link", ...(await nootion.api(`/preview?url=${encodeURIComponent(url)}`)) }),
+  // The page's title, for a mention ("" when unknown: the address is shown instead).
+  title: async (url) => (await nootion.api(`/preview?url=${encodeURIComponent(url)}`)).title ?? "",
+});
+```
+
 ### The app's interface
 
 `nootion.ui` gives a few pieces of Nootion's interface, so that a plugin looks like the rest of the app (light and

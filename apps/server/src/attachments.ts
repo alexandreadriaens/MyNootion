@@ -18,21 +18,70 @@ export function attachmentPath(dataDir: string, id: string): string {
 
 // Types the browser may display inline. Anything else (HTML, SVG, scripts…) is always downloaded,
 // so an uploaded file can never run code in the app's origin.
-const INLINE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "application/pdf", "video/mp4", "video/webm", "audio/mpeg", "audio/ogg", "text/plain"]);
+// Videos from phones (.mov) and common audio formats are media too: a page can play them.
+const INLINE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "image/avif",
+  "application/pdf",
+  "video/mp4",
+  "video/webm",
+  "video/ogg",
+  "video/quicktime",
+  "audio/mpeg",
+  "audio/ogg",
+  "audio/mp4",
+  "audio/wav",
+  "audio/webm",
+  "text/plain",
+]);
 
-export function sendAttachment(reply: FastifyReply, dataDir: string, a: AttachmentRow, forceDownload = false) {
+/**
+ * The single byte range asked by a "Range: bytes=…" header (players ask for parts of a video to start fast and to
+ * seek; Safari plays nothing without it). Null: the whole file. "invalid": a range outside the file.
+ */
+export function byteRange(header: string | undefined, size: number): { start: number; end: number } | null | "invalid" {
+  const m = /^bytes=(\d*)-(\d*)$/.exec(header?.trim() ?? "");
+  if (!m || (m[1] === "" && m[2] === "")) return null;
+  let start: number;
+  let end: number;
+  if (m[1] === "") {
+    // "bytes=-500": the last 500 bytes.
+    start = Math.max(0, size - Number(m[2]));
+    end = size - 1;
+  } else {
+    start = Number(m[1]);
+    end = m[2] === "" ? size - 1 : Math.min(Number(m[2]), size - 1);
+  }
+  if (start >= size || start > end) return "invalid";
+  return { start, end };
+}
+
+export function sendAttachment(reply: FastifyReply, dataDir: string, a: AttachmentRow, forceDownload = false, rangeHeader?: string) {
   const file = attachmentPath(dataDir, a.id);
   if (!fs.existsSync(file)) return reply.status(404).send({ error: "not_found", message: t("error.fileNotFound") });
   const inline = !forceDownload && INLINE_TYPES.has(a.mimeType);
   const encoded = encodeURIComponent(a.filename);
+  const size = fs.statSync(file).size;
   reply
     .header("content-type", inline ? a.mimeType : "application/octet-stream")
-    .header("content-length", a.size)
     .header("content-disposition", `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encoded}`)
+    .header("accept-ranges", "bytes")
     .header("x-content-type-options", "nosniff")
     .header("content-security-policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
     .header("cache-control", "private, max-age=3600");
-  return reply.send(fs.createReadStream(file));
+  const range = byteRange(rangeHeader, size);
+  if (range === "invalid") return reply.status(416).header("content-range", `bytes */${size}`).send();
+  if (range) {
+    return reply
+      .status(206)
+      .header("content-range", `bytes ${range.start}-${range.end}/${size}`)
+      .header("content-length", range.end - range.start + 1)
+      .send(fs.createReadStream(file, { start: range.start, end: range.end }));
+  }
+  return reply.header("content-length", size).send(fs.createReadStream(file));
 }
 
 /** Removes files whose attachment row is gone (deleted pages or workspaces). */

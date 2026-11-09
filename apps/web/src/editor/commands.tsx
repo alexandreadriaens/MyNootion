@@ -7,6 +7,7 @@ import {
   Heading2,
   Heading3,
   Image as ImageIcon,
+  Film,
   Link2,
   List,
   ListOrdered,
@@ -97,6 +98,16 @@ export function slashItems(ctx: CommandContext) {
         await insertFiles(e, ctx.pageId, await pickFiles("image/*"));
       },
       "photo picture img",
+    ),
+    item(
+      "Video",
+      t("command.video"),
+      <Film size={16} />,
+      async (e, r) => {
+        del(e, r).run();
+        await insertFiles(e, ctx.pageId, await pickFiles("video/*"));
+      },
+      "vidéo film movie mp4 mov player lecteur",
     ),
     item(
       "File",

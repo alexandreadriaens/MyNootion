@@ -5,6 +5,36 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [3.3.0-mynotion.2] - 2026-11-09
+
+Based on Nootion 3.3.0: viewers for images, videos and PDFs, and a menu for pasted links.
+
+### Added
+
+- Images can be seen full screen: a double click on an image while editing, a click when the page is read-only
+  (public links included), or "View full screen" in the image's block menu. A click on it switches to its real
+  size (then the view scrolls); Escape, the close button or a click beside it closes; "Open the original" opens
+  the file itself and "Download" saves it with its name, from public links too.
+- Uploaded videos (MP4, WebM, phone .mov…) play in the page, with the browser's player (play, timeline, volume, full
+  screen), with a "Download" button under it; "/video" uploads one. Public links play them too. A browser that can't
+  play a video says so and offers the download.
+- PDFs show a card with their first page, name, size and number of pages, "Read", "Download" and "Print". "Read" (or a
+  click on the first page) opens a full-screen reader showing the first page whole: every page, zoom (buttons, + and
+  -), whole page or fit to width, page number, print, download; Escape closes it. Printing sends only the PDF's pages,
+  one per sheet, from Safari and phones too. Drawn with PDF.js, so it works the same on phones (whose browsers often
+  show only the first page of a PDF) and on public links; loaded only when a page holds a PDF.
+- A link pasted alone in a page offers, as in Notion, what it should become: the plain URL, a mention (the page's
+  title with its site's icon), a bookmark card (title, description, image) or an embed (YouTube, Vimeo, Spotify,
+  maps… player). Arrow keys and Enter pick one; typing or Escape keeps the link. A link pasted over selected text
+  still links that text. Bookmarks and embeds come from the "Embeds" plugin; other plugins can offer them too
+  (`registerLinkHandler`).
+
+### Fixed
+
+- Attachments are sent in parts when a player asks for it (HTTP ranges): videos start faster, can be seeked, and
+  play on iPhone and Safari, which need it. Videos from phones (.mov) and more audio formats are shown instead of
+  being downloaded.
+
 ## [3.3.0-mynotion.1] - 2026-11-08
 
 Based on Nootion 3.3.0, with security fixes.
@@ -333,6 +363,7 @@ First public version.
 - Markdown (.zip), CSV and JSON export, CSV import, full backup download.
 - Single Docker image (amd64 and arm64), data in `/data`, migrations applied at startup.
 
+[3.3.0-mynotion.2]: ../../releases/tag/v3.3.0-mynotion.2
 [3.3.0-mynotion.1]: ../../releases/tag/v3.3.0-mynotion.1
 [3.3.0]: ../../releases/tag/v3.3.0
 [3.2.1]: ../../releases/tag/v3.2.1

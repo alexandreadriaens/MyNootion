@@ -87,6 +87,33 @@ export function activate(nootion) {
   const { React } = nootion;
   const h = React.createElement;
 
+  /** The block's data for a player, or null when the link has none. */
+  const frameData = (url) => {
+    const provider = findProvider(url);
+    return provider ? { url, kind: "frame", provider: provider.name, src: provider.src, height: provider.height } : null;
+  };
+  /** The block's data for a card. The preview is stored in the page, so shared and public readers see it without another request. */
+  const linkData = async (url) => {
+    let meta = {};
+    try {
+      meta = await nootion.api(`/preview?url=${encodeURIComponent(url)}`);
+    } catch {
+      meta = {};
+    }
+    return { url, kind: "link", title: meta.title ?? url, description: meta.description ?? "", image: meta.image ?? null, site: meta.site ?? null };
+  };
+
+  // The menu shown after pasting a link in a page: embed, bookmark or mention.
+  nootion.registerLinkHandler?.({
+    blockId: "embed",
+    embed: frameData,
+    bookmark: linkData,
+    title: async (url) => {
+      const data = await linkData(url);
+      return data.title === url ? "" : data.title;
+    },
+  });
+
   function UrlForm({ onSubmit, initial }) {
     const [value, setValue] = React.useState(initial ?? "");
     const [error, setError] = React.useState(null);
@@ -217,25 +244,7 @@ export function activate(nootion) {
       if (!editable) return null;
       return h(UrlForm, {
         initial: data.url,
-        onSubmit: async (url) => {
-          const provider = findProvider(url);
-          if (provider) return setData({ url, kind: "frame", provider: provider.name, src: provider.src, height: provider.height });
-          // The preview is stored in the page, so shared and public readers see it without another request.
-          let meta = {};
-          try {
-            meta = await nootion.api(`/preview?url=${encodeURIComponent(url)}`);
-          } catch {
-            meta = {};
-          }
-          setData({
-            url,
-            kind: "link",
-            title: meta.title ?? url,
-            description: meta.description ?? "",
-            image: meta.image ?? null,
-            site: meta.site ?? null,
-          });
-        },
+        onSubmit: async (url) => setData(frameData(url) ?? (await linkData(url))),
       });
     }
     const content =
