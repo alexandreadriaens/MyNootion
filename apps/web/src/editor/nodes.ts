@@ -16,7 +16,7 @@ import { CarouselView, HabitView, QuoteView, WeatherView } from "./widgets/Extra
 import { intlLocale, reminderTime, t } from "@nootion/shared";
 import { formatMentionDate } from "../lib/reminders";
 import { randomId } from "../lib/browser";
-import { openPdfViewer, renderPdfPreview } from "./pdfViewer";
+import { openPdfViewer, printWith, renderPdfPreview } from "./pdfViewer";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -198,7 +198,13 @@ function pdfCard(attrs: Record<string, unknown>, update: (n: import("@tiptap/pm/
   download.href = `${url}?download`;
   download.setAttribute("download", "");
   download.textContent = `⬇ ${t("file.download")}`;
-  actions.append(read, download);
+  const print = document.createElement("button");
+  print.type = "button";
+  print.className = "file-pdf__action";
+  const printLabel = `🖨 ${t("pdf.print")}`;
+  print.textContent = printLabel;
+  print.addEventListener("click", () => printWith(print, url, printLabel));
+  actions.append(read, download, print);
   info.append(title, meta, actions);
   dom.append(preview, info);
 

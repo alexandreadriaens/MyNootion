@@ -46,6 +46,66 @@ export async function renderPdfPreview(url: string, canvas: HTMLCanvasElement, w
   return doc.numPages;
 }
 
+/**
+ * Prints the PDF: its pages drawn as images at 150 dpi, alone on the paper (the app hidden), then the browser's print
+ * dialog. Done this way rather than printing the file in a frame: Safari, and phones, can't print a PDF from a frame.
+ */
+let printing = false;
+export async function printPdf(url: string): Promise<void> {
+  if (printing) return;
+  printing = true;
+  const urls: string[] = [];
+  const container = document.createElement("div");
+  container.className = "nootion-pdf-print";
+  // Edge to edge, and without the browser's header and footer (address, date), only while this PDF prints.
+  const pageStyle = document.createElement("style");
+  pageStyle.textContent = "@page { margin: 0; }";
+  try {
+    const doc = await loadPdf(url);
+    for (let n = 1; n <= doc.numPages; n++) {
+      const page = await doc.getPage(n);
+      const canvas = document.createElement("canvas");
+      const viewport = page.getViewport({ scale: 150 / 72 });
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+      await page.render({ canvas, viewport }).promise;
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) continue;
+      const img = document.createElement("img");
+      img.src = URL.createObjectURL(blob);
+      urls.push(img.src);
+      img.alt = "";
+      container.append(img);
+    }
+    document.head.append(pageStyle);
+    document.body.append(container);
+    document.body.classList.add("nootion-printing-pdf");
+    await Promise.all([...container.querySelectorAll("img")].map((img) => img.decode().catch(() => {})));
+    await new Promise<void>((resolve) => {
+      window.addEventListener("afterprint", () => resolve(), { once: true });
+      window.print();
+      // Some browsers (Safari, phones) don't send "afterprint", or send it before printing: cleaned up later anyway.
+      setTimeout(resolve, 60_000);
+    });
+  } finally {
+    document.body.classList.remove("nootion-printing-pdf");
+    container.remove();
+    pageStyle.remove();
+    for (const u of urls) URL.revokeObjectURL(u);
+    printing = false;
+  }
+}
+
+/** A print button's text while the pages are prepared. */
+export function printWith(buttonEl: HTMLElement, url: string, label: string): void {
+  buttonEl.textContent = t("pdf.preparingPrint");
+  buttonEl.setAttribute("aria-busy", "true");
+  void printPdf(url).finally(() => {
+    buttonEl.textContent = label;
+    buttonEl.removeAttribute("aria-busy");
+  });
+}
+
 const button = (label: string, text: string, onClick: () => void) => {
   const b = document.createElement("button");
   b.type = "button";
@@ -142,9 +202,10 @@ export function openPdfViewer(opts: { url: string; name: string; downloadHref: s
   const fit = button(t("pdf.fitWidth"), "↔", () => setScale(fitScale));
   const close = button(t("imageViewer.close"), "×", () => shut());
   close.classList.add("nootion-pdf-viewer__close");
-  bar.append(title, pageInfo, zoomOut, fit, zoomIn, download, close);
+  const print = button(t("pdf.print"), "🖨", () => printWith(print, opts.url, "🖨"));
+  bar.append(title, pageInfo, zoomOut, fit, zoomIn, print, download, close);
   overlay.append(bar, scroller);
-  const controls: HTMLElement[] = [zoomOut, fit, zoomIn, download, close];
+  const controls: HTMLElement[] = [zoomOut, fit, zoomIn, print, download, close];
 
   const onKey = (e: KeyboardEvent) => {
     if (e.key === "Escape") {
