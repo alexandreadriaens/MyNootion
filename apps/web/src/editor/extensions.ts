@@ -25,6 +25,7 @@ import {
 import { pluginNodes } from "../plugins/nodes";
 import { BlockAttributes } from "./blockAttrs";
 import { ImageViewer } from "./imageViewer";
+import { LinkMentions } from "./pasteLink";
 import { t } from "@nootion/shared";
 
 /** Extensions shared by the collaborative editor and the read-only public view. Keep both schemas identical. */
@@ -48,6 +49,7 @@ export function baseExtensions(opts: {
     TableKit.configure({ table: { resizable: true } }),
     Image,
     ImageViewer,
+    LinkMentions,
     Callout,
     Toggle,
     // Its placeholder is shown by CSS (the Placeholder extension only handles top-level blocks).

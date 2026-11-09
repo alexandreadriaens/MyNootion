@@ -40,6 +40,18 @@ export interface PluginFileSource {
   pick: (ctx: { pageId: string; multiple: boolean }) => Promise<UploadedFile[] | undefined | null>;
 }
 
+/** What a plugin makes of a link pasted in a page: the choices of the menu shown after pasting it. */
+export interface PluginLinkHandler {
+  /** The plugin's block (declared in its manifest) that embeds and bookmarks are. */
+  blockId: string;
+  /** The block's data that shows the link's content in the page (a video player…), or null when it can't be embedded. */
+  embed: (url: string) => Record<string, unknown> | null;
+  /** The block's data for a card with the linked page's title, description and image. */
+  bookmark: (url: string) => Promise<Record<string, unknown>>;
+  /** The linked page's title, for a mention (empty when unknown). */
+  title: (url: string) => Promise<string>;
+}
+
 /** The object given to a plugin's browser code: `export function activate(nootion) { … }`. */
 export interface ClientPluginApi {
   id: string;
@@ -55,6 +67,8 @@ export interface ClientPluginApi {
   locale: Locale;
   /** Adds a place to pick files from. */
   registerFileSource: (source: PluginFileSource) => void;
+  /** Offers embeds, bookmarks and mentions of the links pasted in pages. */
+  registerLinkHandler: (handler: PluginLinkHandler) => void;
   /** Pieces of the app's interface, so that plugins look like the rest of Nootion. */
   ui: {
     /** A dialog box: { title, onClose, wide, children }. */
@@ -87,9 +101,16 @@ const formulaStubs = new Map<string, () => void>();
 const enabled = new Set<string>();
 const sources = new Map<string, PluginFileSource>();
 const cells = new Map<string, React.ComponentType<PluginPropertyCellProps>>();
+const linkHandlers = new Map<string, PluginLinkHandler>();
 
 /** Places to pick files from, of enabled plugins. */
 export const fileSources = () => [...sources.entries()].filter(([id]) => enabled.has(id)).map(([, s]) => s);
+
+/** What pasted links can become, from the first enabled plugin offering it. */
+export function linkHandler(): (PluginLinkHandler & { pluginId: string }) | null {
+  for (const [pluginId, handler] of linkHandlers) if (enabled.has(pluginId)) return { ...handler, pluginId };
+  return null;
+}
 
 /** The cell component of a plugin's column type, when the plugin is on. */
 export const propertyCell = (pluginId: string, typeId: string) => (enabled.has(pluginId) ? cells.get(`${pluginId}.${typeId}`) : undefined);
@@ -110,6 +131,9 @@ async function loadClient(p: ClientPluginInfo) {
     },
     registerFileSource: (source) => {
       sources.set(p.id, source);
+    },
+    registerLinkHandler: (handler) => {
+      linkHandlers.set(p.id, handler);
     },
     ui: { Modal, Button, showDialog },
   };

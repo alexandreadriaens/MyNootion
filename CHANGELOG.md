@@ -19,6 +19,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
   + and -), whole page or fit to width, page number, print, download; Escape closes it. Printing sends only the PDF's pages, one per sheet, from Safari and
   phones too. Drawn with PDF.js, so it works the same on phones (whose browsers often show
   only the first page of a PDF) and on public links; loaded only when a page holds a PDF.
+- A link pasted alone in a page offers, as in Notion, what it should become: the plain URL, a mention (the page's
+  title with its site's icon), a bookmark card (title, description, image) or an embed (YouTube, Vimeo, Spotify,
+  maps… player). Arrow keys and Enter pick one; typing or Escape keeps the link. A link pasted over selected text
+  still links that text. Bookmarks and embeds come from the "Embeds" plugin; other plugins can offer them too
+  (`registerLinkHandler`).
 
 ### Fixed
 
